@@ -1,0 +1,25 @@
+Tier 3 flow is shipped. Walk through to Step 7 in the demo and here's what unfolds:
+The trigger. After Sally has compared her Pita Jungle and Barrio Queen carts, type "what about Ethiopian?" and press Enter. AI inline message appears: "No Tier 1 partner restaurants offer Ethiopian in Phoenix yet — but I found one in our discovery catalog that's a strong fit. Lalibela Kitchen has a 4.7★ rating, covers your dietary needs..." and the entire UI swaps over to the discovery cart view.
+The Tier 3 cart looks visibly different. The brand hero is replaced with a dashed-orange-bordered banner showing "📍 DISCOVERY OPTION" pill in the top-right, "CONSIDERING" caps label, "Lalibela Kitchen" in display font, the source attribution line ("Menu data from Yelp · last updated 12 days ago"), and quote-only response time. Below, the StatusRibbon is replaced with a faded version showing "You'd earn ~3,400 Bites if activated" in muted gray, the estimated price range ($249–$305), and "📍 Not yet partnered · Order via quote or direct contact" status. The three cart lines are dashed-bordered cards with no qty steppers, no modifiers, just generic categories ("Mixed entrée platters", "Injera", "Shared starters") with per-line price ranges.
+Two big actions at the bottom. Side-by-side: 📞 Contact restaurant (neutral outlined button) and 📨 Send quote request (brand-orange filled gradient with shadow). Both are no-commit; subtitle clarifies SLA.
+Click "Contact restaurant" → modal slides in with Lalibela's brand-color header, three clickable rows beneath:
+
+Phone with tel: link — clicking actually triggers a phone call on a real phone
+Email with mailto: link auto-filled with subject "Catering inquiry from WeCater (Marketing Team)"
+Website opening lalibelakitchen.com in new tab
+A dashed brand-orange "💡 What to ask" callout below provides Sally a script: "Mention you're calling through WeCater — they'll know your dietary requirements (Vegetarian, Vegan, Tree nut allergy) are pre-vetted. Confirm 14-person catering for tomorrow lunch and ask if they can match your $210 budget."
+
+Click "Send quote request" → modal opens in review state with auto-populated event details, the dietary chips that will be attached, and a footer note: "Restaurant enters our partner activation pipeline — if they sign up, you'll see them as a Tier 1 partner next time." Click Send → transitions to sent confirmation with green checkmark, quote reference (WC-2026-0430-LALI), and an "Open PDF preview" button.
+Click "Open PDF preview" → modal expands wider (720px) and reveals an Adobe-Reader-style grey backdrop with a real-document-styled white page in serif font (Georgia). The PDF mock includes the WeCater header logo, "QUOTE REQUEST" title, quote ref, "Sent To" / "Requested By" two-column layout, event details box (date, headcount, budget, setup), dietary requirements as a bulleted list with individual names from profile, "What we need from Lalibela Kitchen" enumerated checklist (proposed menu, itemized pricing, delivery confirmation, minimums, reply instructions), and a footer about WeCater's partnership offer. It looks like a real B2B catering quote document — exactly what would land in Lalibela's inbox.
+The right panel updates in three places simultaneously:
+
+Cart drafts now shows a third row for Lalibela Kitchen with dashed border, 📍 DISCOVERY mini-badge, and subtitle "Est. $249–$305 · quote-only" instead of total Bites
+A new "📨 Quote requests" section appears between cart drafts and active multipliers, showing the quote reference, the SENT badge, "Awaiting response · ~24h SLA," and a footnote: "You'll be notified when restaurants respond. Quote history is saved to your profile."
+Active multipliers section is hidden entirely when active restaurant is Tier 3 — they don't apply since the restaurant isn't activated. Reappears immediately when Sally clicks back to Pita Jungle or Barrio Queen.
+
+The full demo flow now has 8 steps total. Click any of the Tier 1 cart drafts in the right panel to switch back. The quote request entry persists in the right panel — Sally has a permanent record. The "Send quote request" button on the Tier 3 view shows "✓ Quote request sent" once submitted (disabled green state), so Sally can see at a glance she already acted on this restaurant.
+
+Two production engineering tickets added to capture what the demo simulates:
+TIER-7 — server-side PDF generation. The demo renders the PDF preview client-side, but production needs real PDF documents emailed to restaurants with reply-to routing back to WeCater (not the user) so we can track the activation funnel correctly.
+TIER-8 — contact-restaurant click tracking as engagement signal. Even before Sally formally sends a quote, the act of clicking "Contact restaurant" is a warm signal worth capturing in restaurant analytics. Strongest activation candidates are restaurants that get both a contact view AND a quote request from the same user.
+The CRM lead creation per quote was already covered in the existing TIER-5 ticket.

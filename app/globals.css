@@ -1,0 +1,54 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html, body {
+    height: 100%;
+  }
+
+  body {
+    background: #FAFAF8;
+    color: #1A1714;
+    font-family: "DM Sans", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: rgba(232, 106, 26, 0.18);
+    color: #1A1714;
+  }
+
+  /* Custom scrollbar matching the prototype style */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #DDD6CB;
+    border-radius: 999px;
+    border: 2px solid #FAFAF8;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #C8BFB1;
+  }
+}
+
+@layer utilities {
+  .font-display { font-family: "Outfit", system-ui, sans-serif; }
+  .font-body    { font-family: "DM Sans", system-ui, sans-serif; }
+  .font-mono    { font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+  .scrollbar-none { scrollbar-width: none; }
+}
