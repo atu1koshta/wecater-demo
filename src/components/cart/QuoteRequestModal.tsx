@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X, FileText, Mail, Send, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { CartProfile, Restaurant } from "@/types";
@@ -35,6 +35,10 @@ export function QuoteRequestModal({
       `WC-2026-${String(Math.floor(Math.random() * 1000)).padStart(4, "0")}-${restaurant.id.slice(0, 4).toUpperCase()}`,
   );
 
+  useEffect(() => {
+    if (open) setStep("review");
+  }, [open]);
+
   if (!open) return null;
 
   const widthClass = step === "pdf" ? "w-[720px]" : "w-[560px]";
@@ -58,6 +62,7 @@ export function QuoteRequestModal({
           <ReviewStep
             restaurant={restaurant}
             profile={profile}
+            quoteRef={quoteRef}
             onClose={onClose}
             onSend={() => {
               setStep("sent");
@@ -90,14 +95,24 @@ export function QuoteRequestModal({
 function ReviewStep({
   restaurant,
   profile,
+  quoteRef,
   onClose,
   onSend,
 }: {
   restaurant: Restaurant;
   profile: CartProfile;
+  quoteRef: string;
   onClose: () => void;
   onSend: () => void;
 }) {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const eventDate = tomorrow.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
+
   return (
     <>
       <div className="px-6 pt-6 flex justify-between items-start gap-3">
@@ -119,31 +134,26 @@ function ReviewStep({
         </button>
       </div>
 
-      <div className="p-6 flex flex-col gap-4">
-        <Field label="Event">
-          {profile.headcount} people · {profile.deliveryAddress}
+      <div className="p-6 grid grid-cols-2 gap-4">
+        <Field label="Recipient">
+          <div>{restaurant.name}</div>
+          {restaurant.contact?.email && (
+            <div className="text-ink-secondary text-[11px]">{restaurant.contact.email}</div>
+          )}
         </Field>
-        <Field label="Budget">
-          ${profile.budgetTotal} total (${profile.budgetPerPerson}/pp)
+        <Field label="Quote ref">
+          <span className="font-mono text-[12px]">{quoteRef}</span>
         </Field>
-        <Field label="Dietary requirements">
-          <div className="flex flex-wrap gap-1.5">
-            {profile.dietaryRestrictions
-              .filter((d) => d.count > 0 || d.source === "told")
-              .map((d) => (
-                <span
-                  key={d.tag}
-                  className="text-[11px] px-2 py-0.5 rounded-md bg-success-light text-success font-semibold"
-                >
-                  {d.count > 0 ? `${d.count} ` : ""}
-                  {d.tag}
-                </span>
-              ))}
-          </div>
+        <Field label="Event date">{eventDate} · lunch</Field>
+        <Field label="Headcount + budget">
+          {profile.headcount} people · ${profile.budgetTotal} (${profile.budgetPerPerson}/pp)
         </Field>
-        <Field label="Setup">Lunch · pickup or delivery</Field>
+        <Field label="Delivery to">{profile.deliveryAddress}</Field>
+        <Field label="Response by">
+          ~{restaurant.quoteResponseHours ?? 24}h SLA · email
+        </Field>
 
-        <div className="px-3.5 py-3 rounded-xl bg-brand-light border border-dashed border-brand/40 text-xs text-ink-secondary leading-relaxed">
+        <div className="col-span-2 px-3.5 py-3 rounded-xl bg-brand-light border border-dashed border-brand/40 text-xs text-ink-secondary leading-relaxed">
           <strong className="text-ink">Restaurant enters our partner activation
           pipeline.</strong>{" "}
           If they sign up, you&apos;ll see them as a Tier 1 partner next time you
@@ -151,10 +161,7 @@ function ReviewStep({
         </div>
       </div>
 
-      <div className="px-6 py-4 bg-surface border-t border-surface-border flex justify-between items-center gap-3 flex-wrap">
-        <span className="text-[11px] text-ink-secondary">
-          ~{restaurant.quoteResponseHours ?? 24}h SLA
-        </span>
+      <div className="px-6 py-4 bg-surface border-t border-surface-border flex justify-end items-center gap-3">
         <button
           type="button"
           onClick={onSend}

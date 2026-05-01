@@ -19,10 +19,12 @@ export function ContextPanel({
   context,
   animatingKeys,
   open,
+  onClose,
 }: {
   context: OrderContext;
   animatingKeys: Set<string>;
   open: boolean;
+  onClose?: () => void;
 }) {
   if (!open) return null;
 
@@ -34,7 +36,13 @@ export function ContextPanel({
   const hasContext = activeCount > 0;
 
   return (
-    <aside className="hidden lg:flex w-[340px] shrink-0 flex-col border-l border-surface-border bg-surface overflow-y-auto p-3.5 gap-2.5 animate-slideInRight">
+    <>
+      {/* Mobile backdrop — closes panel when tapping outside */}
+      <div
+        className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+        onClick={onClose}
+      />
+    <aside className="fixed right-0 top-0 h-full z-50 w-[300px] shadow-2xl lg:static lg:w-[340px] lg:h-auto lg:shadow-none lg:z-auto shrink-0 flex flex-col border-l border-surface-border bg-surface overflow-y-auto p-3.5 gap-2.5 animate-slideInRight">
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-bold text-ink-tertiary tracking-widest uppercase font-display">
           Live Context
@@ -117,6 +125,7 @@ export function ContextPanel({
       )}
       {context.orderStatus === "ready_to_confirm" && <OrderStatusBanner />}
     </aside>
+    </>
   );
 }
 

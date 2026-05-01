@@ -25,6 +25,7 @@ import { Tier3Actions, type QuoteStatus } from "./Tier3Actions";
 import { Tier3Hero } from "./Tier3Hero";
 import { Tier3LightCart } from "./Tier3LightCart";
 import { WhatCanIAskPanel } from "./WhatCanIAskPanel";
+import { ThingsToConfirm, type ConfirmItem } from "./ThingsToConfirm";
 
 const HINT_INTERVAL_MS = 3500;
 
@@ -34,7 +35,7 @@ export function CartBuilder() {
   const [persona, setPersona] = useState<Persona>("ea");
   const [activeKey, setActiveKey] = useState<string>("pita-jungle");
   const [carts, setCarts] = useState<Record<string, CartLine[]>>(
-    () => INITIAL_CARTS.ea,
+    () => ({ "pita-jungle": INITIAL_CARTS.ea["pita-jungle"] }),
   );
   const [step, setStep] = useState(0);
   const [aiInline, setAiInline] = useState<string | null>(null);
@@ -50,6 +51,7 @@ export function CartBuilder() {
   const [quoteRequests, setQuoteRequests] = useState<QuoteRequestRecord[]>([]);
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [hintIdx, setHintIdx] = useState(0);
+  const [thingsToConfirm, setThingsToConfirm] = useState<ConfirmItem[]>([]);
 
   const profile = CART_PROFILES[persona];
   const restaurant = getRestaurant(activeKey) ?? RESTAURANTS[0];
@@ -69,7 +71,7 @@ export function CartBuilder() {
 
   // Reset everything when persona flips
   useEffect(() => {
-    setCarts(INITIAL_CARTS[persona]);
+    setCarts({ "pita-jungle": INITIAL_CARTS[persona]["pita-jungle"] });
     setActiveKey("pita-jungle");
     setStep(0);
     setNlPreview(null);
@@ -79,6 +81,7 @@ export function CartBuilder() {
     setShowQuote(false);
     setQuoteRequests([]);
     setOrderPlaced(false);
+    setThingsToConfirm([]);
   }, [persona]);
 
   // Initial AI inline + proactive on first mount / step 0
@@ -204,15 +207,17 @@ export function CartBuilder() {
       appliesTo: "Shared dessert",
     });
     setProactive(null);
+    setAiInline("Added Baklava platter — note it contains nuts. Sarah's row in the per-person table will be flagged.");
   }, [activeKey, addLine]);
 
   const reset = useCallback(() => {
-    setCarts(INITIAL_CARTS[persona]);
+    setCarts({ "pita-jungle": INITIAL_CARTS[persona]["pita-jungle"] });
     setActiveKey("pita-jungle");
     setStep(0);
     setOrderPlaced(false);
     setQuoteRequests([]);
     setShowCompare(false);
+    setThingsToConfirm([]);
   }, [persona]);
 
   if (orderPlaced) {
@@ -227,7 +232,7 @@ export function CartBuilder() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-3.5rem)]">
+    <div className="flex flex-col h-[calc(100dvh-8.5rem)] md:h-[calc(100dvh-3.5rem)]">
       <div className="flex items-center gap-3 px-4 md:px-5 py-2.5 border-b border-surface-border bg-surface-raised">
         <PersonaToggle persona={persona} onChange={setPersona} />
         <div className="hidden md:flex flex-1 items-center gap-1.5 text-xs text-ink-secondary truncate">
@@ -263,9 +268,17 @@ export function CartBuilder() {
                   profile={profile}
                   totals={totals}
                 />
-                <StatusRibbon profile={profile} totals={totals} />
+                <div className="sticky top-0 z-10">
+                  <StatusRibbon profile={profile} totals={totals} />
+                </div>
               </>
             )}
+
+            <ThingsToConfirm
+              items={thingsToConfirm}
+              onResolve={(id) => setThingsToConfirm((prev) => prev.filter((i) => i.id !== id))}
+              onDismiss={(id) => setThingsToConfirm((prev) => prev.filter((i) => i.id !== id))}
+            />
 
             {aiInline && <AiInlineBanner text={aiInline} onDismiss={() => setAiInline(null)} />}
 
@@ -313,12 +326,14 @@ export function CartBuilder() {
                     Add another item · or just type what you want
                   </button>
                 </div>
-                <CheckoutSection
-                  profile={profile}
-                  totals={totals}
-                  restaurantName={restaurant.name}
-                  onPlaceOrder={() => setOrderPlaced(true)}
-                />
+                <div className="sticky bottom-3 z-10">
+                  <CheckoutSection
+                    profile={profile}
+                    totals={totals}
+                    restaurantName={restaurant.name}
+                    onPlaceOrder={() => setOrderPlaced(true)}
+                  />
+                </div>
               </>
             )}
           </div>

@@ -41,10 +41,10 @@ export function ChatConcierge() {
     }
   }, []);
 
-  const advance = useCallback(() => {
-    if (step >= CHAT_DEMO.length) return;
+  const advance = useCallback((): boolean => {
+    if (step >= CHAT_DEMO.length) return false;
     const current = CHAT_DEMO[step];
-    if (current.role !== "user") return;
+    if (current.role !== "user") return false;
 
     applyMessage(current);
     setStep((s) => s + 1);
@@ -58,6 +58,7 @@ export function ChatConcierge() {
         setStep((s) => s + 1);
       }, TYPING_DELAY_MS);
     }
+    return true;
   }, [step, applyMessage]);
 
   const nextUser = CHAT_DEMO[step];
@@ -71,7 +72,7 @@ export function ChatConcierge() {
       : "✅ Demo complete";
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-3.5rem)]">
+    <div className="flex flex-col h-[calc(100dvh-8.5rem)] md:h-[calc(100dvh-3.5rem)]">
       <div className="flex items-center gap-2 px-4 md:px-5 py-2.5 border-b border-surface-border bg-surface-raised">
         {context.activeProfile && (
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-light">
@@ -86,7 +87,7 @@ export function ChatConcierge() {
           type="button"
           onClick={() => setPanelOpen((o) => !o)}
           className={cn(
-            "hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
             panelOpen
               ? "border-brand bg-brand-light text-brand"
               : "border-surface-border bg-transparent text-ink-secondary hover:border-surface-border-strong",
@@ -119,6 +120,7 @@ export function ChatConcierge() {
           context={context}
           animatingKeys={animating}
           open={panelOpen}
+          onClose={() => setPanelOpen(false)}
         />
       </div>
     </div>

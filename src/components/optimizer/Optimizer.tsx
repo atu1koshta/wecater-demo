@@ -96,7 +96,7 @@ export function Optimizer() {
   }, [messages, currentMode, selected]);
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-3.5rem)]">
+    <div className="flex flex-col h-[calc(100dvh-8.5rem)] md:h-[calc(100dvh-3.5rem)]">
       {/* Density toggle + Sally chip */}
       <div className="flex items-center gap-2 px-4 md:px-5 py-2.5 border-b border-surface-border bg-surface-raised">
         <DensityToggle density={density} onChange={setDensity} />

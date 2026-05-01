@@ -19,7 +19,7 @@ export function ProfileSidekick({ profile }: { profile: Profile }) {
   const implicit = profile.dietary.people.filter((p) => p.source === "implicit").length;
 
   return (
-    <aside className="hidden xl:flex xl:w-[300px] xl:shrink-0 flex-col bg-surface border-l border-surface-border xl:h-full xl:overflow-y-auto p-4">
+    <aside className="hidden lg:flex lg:w-[300px] lg:shrink-0 flex-col bg-surface border-l border-surface-border lg:h-full lg:overflow-y-auto p-4">
       <span className="text-[11px] font-bold text-ink-tertiary tracking-widest uppercase font-display">
         Next Steps
       </span>

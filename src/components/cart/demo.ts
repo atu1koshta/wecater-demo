@@ -47,6 +47,9 @@ const KETO_PREVIEW: NLPreview = {
       text: "Keep wraps but swap pita to lettuce wrap (note: kitchen instruction)",
     },
   ],
+  netCost: "+$8.50",
+  netBites: "+85 Bites",
+  dietary: "Keto ✓",
 };
 
 export const CART_DEMO: CartDemoTurn[] = [

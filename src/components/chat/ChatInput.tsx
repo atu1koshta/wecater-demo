@@ -11,7 +11,7 @@ export function ChatInput({
   disabled,
 }: {
   placeholder: string;
-  onSend: () => void;
+  onSend: () => boolean;
   stepLabel: string;
   disabled: boolean;
 }) {
@@ -19,8 +19,8 @@ export function ChatInput({
 
   const handleSend = () => {
     if (disabled) return;
-    onSend();
-    setValue("");
+    const sent = onSend();
+    if (sent) setValue("");
   };
 
   return (

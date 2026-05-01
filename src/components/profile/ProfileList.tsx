@@ -45,6 +45,17 @@ export function ProfileList({
       )}
     >
       <div className="px-3.5 pt-3.5 pb-2.5 border-b border-surface-border-light">
+        <div className="flex items-center justify-between mb-2.5">
+          <span className="text-[11px] font-bold text-ink-tertiary tracking-wider uppercase">
+            {profiles.length} profiles
+          </span>
+          <button
+            type="button"
+            className="px-2.5 py-1 rounded-lg bg-brand text-ink-inverse text-[11px] font-semibold hover:bg-brand-dark transition-colors"
+          >
+            + New Profile
+          </button>
+        </div>
         <div className="relative mb-2.5">
           <Search
             className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-ink-tertiary"
