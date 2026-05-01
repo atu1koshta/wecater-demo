@@ -268,9 +268,7 @@ export function CartBuilder() {
                   profile={profile}
                   totals={totals}
                 />
-                <div className="sticky top-0 z-10">
-                  <StatusRibbon profile={profile} totals={totals} />
-                </div>
+                <StatusRibbon profile={profile} totals={totals} />
               </>
             )}
 
@@ -326,14 +324,12 @@ export function CartBuilder() {
                     Add another item · or just type what you want
                   </button>
                 </div>
-                <div className="sticky bottom-3 z-10">
-                  <CheckoutSection
-                    profile={profile}
-                    totals={totals}
-                    restaurantName={restaurant.name}
-                    onPlaceOrder={() => setOrderPlaced(true)}
-                  />
-                </div>
+                <CheckoutSection
+                  profile={profile}
+                  totals={totals}
+                  restaurantName={restaurant.name}
+                  onPlaceOrder={() => setOrderPlaced(true)}
+                />
               </>
             )}
           </div>
