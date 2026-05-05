@@ -32,7 +32,7 @@ export function Composer({
 
   return (
     <div className="border-t border-surface-border-light bg-surface-raised px-4 md:px-5 pt-3 pb-4">
-      <div className="flex gap-1.5 mb-2.5 overflow-x-auto pb-0.5 scrollbar-none">
+      <div className="hidden lg:flex gap-1.5 mb-2.5 overflow-x-auto pb-0.5 scrollbar-none">
         <span className="text-[10px] font-bold text-ink-tertiary tracking-wider uppercase self-center whitespace-nowrap mr-1">
           Optimize:
         </span>

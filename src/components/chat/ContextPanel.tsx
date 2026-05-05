@@ -19,7 +19,7 @@ export function ContextPanel({
   context,
   animatingKeys,
   open,
-  onClose,
+  onClose: _onClose,
 }: {
   context: OrderContext;
   animatingKeys: Set<string>;
@@ -36,13 +36,7 @@ export function ContextPanel({
   const hasContext = activeCount > 0;
 
   return (
-    <>
-      {/* Mobile backdrop — closes panel when tapping outside */}
-      <div
-        className="fixed inset-0 z-40 bg-black/40 lg:hidden"
-        onClick={onClose}
-      />
-    <aside className="fixed right-0 top-0 h-full z-50 w-[300px] shadow-2xl lg:static lg:w-[340px] lg:h-auto lg:shadow-none lg:z-auto shrink-0 flex flex-col border-l border-surface-border bg-surface overflow-y-auto p-3.5 gap-2.5 animate-slideInRight">
+    <aside className="hidden lg:flex flex-col w-[340px] shrink-0 border-l border-surface-border bg-surface overflow-y-auto p-3.5 gap-2.5 animate-slideInRight">
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-bold text-ink-tertiary tracking-widest uppercase font-display">
           Live Context
@@ -58,19 +52,11 @@ export function ContextPanel({
         <div className="text-center py-10 px-4">
           <div className="h-10 w-10 rounded-xl bg-surface-border-light mx-auto mb-3 grid place-items-center text-ink-tertiary">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <circle
-                cx="9"
-                cy="9"
-                r="7.5"
-                stroke="currentColor"
-                strokeWidth="1.2"
-                strokeDasharray="3 3"
-              />
+              <circle cx="9" cy="9" r="7.5" stroke="currentColor" strokeWidth="1.2" strokeDasharray="3 3" />
             </svg>
           </div>
           <p className="text-xs text-ink-tertiary leading-relaxed">
-            Context cards will appear here as you chat. Start by telling me who the
-            order is for.
+            Context cards will appear here as you chat. Start by telling me who the order is for.
           </p>
         </div>
       )}
@@ -125,7 +111,6 @@ export function ContextPanel({
       )}
       {context.orderStatus === "ready_to_confirm" && <OrderStatusBanner />}
     </aside>
-    </>
   );
 }
 

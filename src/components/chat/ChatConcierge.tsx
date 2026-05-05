@@ -8,6 +8,9 @@ import { CHAT_DEMO } from "@/data/chat-demo";
 import { ChatInput } from "./ChatInput";
 import { ChatStream } from "./ChatStream";
 import { ContextPanel } from "./ContextPanel";
+import { ComplianceRibbon } from "./ComplianceRibbon";
+import { MobileContextBar } from "./MobileContextBar";
+import { MobileBottomSheet } from "./MobileBottomSheet";
 
 const TYPING_DELAY_MS = 1400;
 const ANIMATE_FOR_MS = 800;
@@ -19,6 +22,8 @@ export function ChatConcierge() {
   const [isTyping, setIsTyping] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
   const [animating, setAnimating] = useState<Set<string>>(new Set());
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetScrollTo, setSheetScrollTo] = useState<string | null>(null);
 
   const applyMessage = useCallback((msg: ChatMessage) => {
     setMessages((prev) => [...prev, msg]);
@@ -61,6 +66,11 @@ export function ChatConcierge() {
     return true;
   }, [step, applyMessage]);
 
+  const handleChipTap = useCallback((section: string) => {
+    setSheetScrollTo(section);
+    setSheetOpen(true);
+  }, []);
+
   const nextUser = CHAT_DEMO[step];
   const placeholder =
     nextUser?.role === "user" ? nextUser.text : "Type your catering request…";
@@ -73,21 +83,23 @@ export function ChatConcierge() {
 
   return (
     <div className="flex flex-col h-[calc(100dvh-8.5rem)] md:h-[calc(100dvh-3.5rem)]">
+      {/* Sub-header */}
       <div className="flex items-center gap-2 px-4 md:px-5 py-2.5 border-b border-surface-border bg-surface-raised">
         {context.activeProfile && (
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-light">
-            <span className="text-sm">{context.activeProfile.icon}</span>
-            <span className="text-xs font-semibold text-brand-dark truncate max-w-[200px]">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-brand-light min-w-0">
+            <span className="text-sm shrink-0">{context.activeProfile.icon}</span>
+            <span className="text-xs font-semibold text-brand-dark truncate max-w-[140px] md:max-w-[200px]">
               {context.activeProfile.name}
             </span>
           </div>
         )}
         <div className="flex-1" />
+        {/* Desktop-only Context toggle */}
         <button
           type="button"
           onClick={() => setPanelOpen((o) => !o)}
           className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+            "hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors shrink-0",
             panelOpen
               ? "border-brand bg-brand-light text-brand"
               : "border-surface-border bg-transparent text-ink-secondary hover:border-surface-border-strong",
@@ -102,6 +114,15 @@ export function ChatConcierge() {
         </button>
       </div>
 
+      {/* Mobile compliance ribbon */}
+      {context.budget?.compliance && (
+        <ComplianceRibbon
+          compliance={context.budget.compliance}
+          onTap={() => handleChipTap("budget")}
+        />
+      )}
+
+      {/* Main area */}
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 flex flex-col min-w-0 bg-surface-raised">
           <ChatStream
@@ -109,6 +130,8 @@ export function ChatConcierge() {
             isTyping={isTyping}
             onSelectPrompt={advance}
           />
+          {/* Mobile chips bar — above input, hidden on desktop */}
+          <MobileContextBar context={context} onChipTap={handleChipTap} />
           <ChatInput
             placeholder={placeholder}
             onSend={advance}
@@ -116,6 +139,7 @@ export function ChatConcierge() {
             disabled={step >= CHAT_DEMO.length}
           />
         </div>
+        {/* Desktop right panel */}
         <ContextPanel
           context={context}
           animatingKeys={animating}
@@ -123,14 +147,18 @@ export function ChatConcierge() {
           onClose={() => setPanelOpen(false)}
         />
       </div>
+
+      {/* Mobile bottom sheet */}
+      <MobileBottomSheet
+        open={sheetOpen}
+        context={context}
+        scrollTo={sheetScrollTo}
+        onClose={() => setSheetOpen(false)}
+      />
     </div>
   );
 }
 
-/**
- * Patch-merge incoming context update into the running OrderContext.
- * Arrays replace; objects shallow-merge with existing; primitives overwrite.
- */
 function mergeContext(
   prev: OrderContext,
   update: Partial<OrderContext>,
@@ -140,7 +168,6 @@ function mergeContext(
     const value = update[key];
     if (value === undefined) continue;
     if (Array.isArray(value)) {
-      // Arrays replace wholesale
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (next as any)[key] = value;
     } else if (typeof value === "object" && value !== null) {

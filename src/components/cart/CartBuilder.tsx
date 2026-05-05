@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Send, X, HelpCircle } from "lucide-react";
+import { Plus, Send, X, HelpCircle, ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/cn";
-import type { CartLine, Persona } from "@/types";
+import type { CartLine, Persona, Restaurant } from "@/types";
 import { CART_PROFILES } from "@/data/cart-profiles";
 import { INITIAL_CARTS } from "@/data/cart-drafts";
 import { RESTAURANTS, getRestaurant } from "@/data/restaurants";
@@ -13,7 +13,8 @@ import { CART_DEMO, CART_HINTS } from "./demo";
 import { CheckoutSection } from "./CheckoutSection";
 import { CompareCartsView } from "./CompareCartsView";
 import { ContactRestaurantModal } from "./ContactRestaurantModal";
-import { calcCartTotals } from "./math";
+import { calcCartTotals, getDietaryCoverage } from "./math";
+import type { CartTotals } from "./math";
 import { NLEditPreview, type NLPreview } from "./NLEditPreview";
 import { OrderPlacedScreen } from "./OrderPlacedScreen";
 import { PersonaToggle } from "./atoms";
@@ -46,6 +47,7 @@ export function CartBuilder() {
   const [perPersonLineId, setPerPersonLineId] = useState<string | null>(null);
   const [showCompare, setShowCompare] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showCartDrafts, setShowCartDrafts] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const [showQuote, setShowQuote] = useState(false);
   const [quoteRequests, setQuoteRequests] = useState<QuoteRequestRecord[]>([]);
@@ -61,6 +63,9 @@ export function CartBuilder() {
     [cart, restaurant],
   );
   const isTier3 = restaurant.tier === 3;
+  const coverage = getDietaryCoverage(profile);
+  const overBudget = totals.subtotal > profile.budgetTotal;
+  const cartCount = Object.keys(carts).length;
   const tier3QuoteStatus: QuoteStatus = quoteRequests.some(
     (q) => q.restaurantKey === activeKey,
   )
@@ -82,6 +87,7 @@ export function CartBuilder() {
     setQuoteRequests([]);
     setOrderPlaced(false);
     setThingsToConfirm([]);
+    setShowCartDrafts(false);
   }, [persona]);
 
   // Initial AI inline + proactive on first mount / step 0
@@ -233,9 +239,30 @@ export function CartBuilder() {
 
   return (
     <div className="flex flex-col h-[calc(100dvh-8.5rem)] md:h-[calc(100dvh-3.5rem)]">
-      <div className="flex items-center gap-3 px-4 md:px-5 py-2.5 border-b border-surface-border bg-surface-raised">
-        <PersonaToggle persona={persona} onChange={setPersona} />
-        <div className="hidden md:flex flex-1 items-center gap-1.5 text-xs text-ink-secondary truncate">
+      {/* Header — responsive */}
+      <div className="flex items-center gap-2 px-4 md:px-5 py-2.5 border-b border-surface-border bg-surface-raised shrink-0">
+        {/* Mobile: cart drafts icon */}
+        <button
+          type="button"
+          onClick={() => setShowCartDrafts(true)}
+          className="lg:hidden relative h-9 w-9 rounded-lg border border-surface-border bg-surface flex items-center justify-center shrink-0"
+          title={`${cartCount} cart draft${cartCount !== 1 ? "s" : ""}`}
+        >
+          <ShoppingCart className="h-4 w-4 text-ink" strokeWidth={1.8} />
+          {cartCount > 1 && (
+            <span className="absolute top-1 right-1 h-3.5 min-w-[14px] rounded-full bg-brand text-ink-inverse text-[9px] font-bold flex items-center justify-center px-0.5 leading-none">
+              {cartCount}
+            </span>
+          )}
+        </button>
+
+        {/* Desktop: PersonaToggle */}
+        <div className="hidden lg:block shrink-0">
+          <PersonaToggle persona={persona} onChange={setPersona} />
+        </div>
+
+        {/* Desktop: restaurant/profile info */}
+        <div className="hidden lg:flex flex-1 items-center gap-1.5 text-xs text-ink-secondary truncate">
           <span>{restaurant.icon}</span>
           <span className="font-medium text-ink">{restaurant.name}</span>
           <span className="text-ink-tertiary">·</span>
@@ -246,19 +273,78 @@ export function CartBuilder() {
             {profile.headcount} people · Tomorrow lunch
           </span>
         </div>
+
+        {/* Mobile: restaurant name center */}
+        <div className="lg:hidden flex-1 min-w-0">
+          <div className="text-[13px] font-semibold text-ink truncate leading-tight">
+            {restaurant.icon} {restaurant.name}
+          </div>
+          <div className="text-[10px] text-ink-tertiary leading-none mt-0.5">
+            {restaurant.tier === 3
+              ? "📍 Quote-only"
+              : `${profile.headcount} people · Tomorrow lunch`}
+          </div>
+        </div>
+
+        {/* Mobile: compact persona icons */}
+        <div className="lg:hidden flex p-0.5 bg-surface rounded-lg shrink-0 gap-0.5">
+          {(["ea", "pharma"] as const).map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setPersona(p)}
+              className={cn(
+                "h-7 w-8 rounded-md flex items-center justify-center text-sm transition-all",
+                persona === p
+                  ? "bg-white shadow-sm opacity-100"
+                  : "opacity-40",
+              )}
+              title={p === "ea" ? "EA mode" : "Pharma rep mode"}
+            >
+              {p === "ea" ? "📋" : "🏥"}
+            </button>
+          ))}
+        </div>
+
+        {/* Help button */}
         <button
           type="button"
           onClick={() => setShowHelp((s) => !s)}
-          className="ml-auto px-2.5 py-1.5 rounded-lg border border-surface-border bg-surface text-ink-secondary text-xs font-medium flex items-center gap-1 hover:border-brand hover:text-brand transition-colors"
+          className="shrink-0 px-2 py-1.5 rounded-lg border border-surface-border bg-surface text-ink-secondary text-xs font-medium flex items-center gap-1 hover:border-brand hover:text-brand transition-colors"
         >
           <HelpCircle className="h-3.5 w-3.5" strokeWidth={2.2} />
-          What can I ask?
+          <span className="hidden sm:inline">What can I ask?</span>
         </button>
       </div>
 
+      {/* Mobile status strip — lg:hidden */}
+      {!isTier3 && (
+        <div className="lg:hidden grid grid-cols-3 border-b border-surface-border bg-surface-raised shrink-0">
+          <MobileStatCell
+            icon="🪙"
+            label="Bites"
+            value={totals.totalBites.toLocaleString()}
+            color="text-brand"
+          />
+          <MobileStatCell
+            icon="🥗"
+            label="Diet"
+            value={`${coverage.covered}/${coverage.total}`}
+            color="text-success"
+          />
+          <MobileStatCell
+            icon="💵"
+            label="Budget"
+            value={`$${totals.subtotal.toFixed(0)}`}
+            color={overBudget ? "text-danger" : "text-ink"}
+            sub={`/${profile.budgetTotal}`}
+          />
+        </div>
+      )}
+
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 overflow-y-auto bg-surface">
-          <div className="px-4 md:px-6 py-4 max-w-[920px] mx-auto flex flex-col gap-4">
+          <div className="px-4 md:px-6 py-4 max-w-[920px] mx-auto flex flex-col gap-4 pb-[148px] lg:pb-4">
             {isTier3 ? (
               <Tier3Hero restaurant={restaurant} profile={profile} />
             ) : (
@@ -283,11 +369,14 @@ export function CartBuilder() {
             {isTier3 ? (
               <>
                 <Tier3LightCart restaurant={restaurant} />
-                <Tier3Actions
-                  quoteStatus={tier3QuoteStatus}
-                  onContact={() => setShowContact(true)}
-                  onRequestQuote={() => setShowQuote(true)}
-                />
+                {/* Desktop: Tier3Actions in scroll; mobile: shown in bottom bar */}
+                <div className="hidden lg:block">
+                  <Tier3Actions
+                    quoteStatus={tier3QuoteStatus}
+                    onContact={() => setShowContact(true)}
+                    onRequestQuote={() => setShowQuote(true)}
+                  />
+                </div>
               </>
             ) : (
               <>
@@ -324,12 +413,15 @@ export function CartBuilder() {
                     Add another item · or just type what you want
                   </button>
                 </div>
-                <CheckoutSection
-                  profile={profile}
-                  totals={totals}
-                  restaurantName={restaurant.name}
-                  onPlaceOrder={() => setOrderPlaced(true)}
-                />
+                {/* Desktop: CheckoutSection in scroll; mobile: PlaceOrderBar in bottom bar */}
+                <div className="hidden lg:block">
+                  <CheckoutSection
+                    profile={profile}
+                    totals={totals}
+                    restaurantName={restaurant.name}
+                    onPlaceOrder={() => setOrderPlaced(true)}
+                  />
+                </div>
               </>
             )}
           </div>
@@ -368,6 +460,60 @@ export function CartBuilder() {
           />
         </div>
       </div>
+
+      {/* Mobile bottom bar — lg:hidden */}
+      {isTier3 ? (
+        <div className="lg:hidden px-4 py-3 border-t border-surface-border bg-surface-raised shrink-0">
+          <Tier3Actions
+            quoteStatus={tier3QuoteStatus}
+            onContact={() => setShowContact(true)}
+            onRequestQuote={() => setShowQuote(true)}
+          />
+        </div>
+      ) : (
+        <div className="lg:hidden shrink-0">
+          <MobilePlaceOrderBar
+            totals={totals}
+            restaurantName={restaurant.name}
+            onPlace={() => setOrderPlaced(true)}
+          />
+        </div>
+      )}
+      <div className="lg:hidden shrink-0">
+        <MobileChatInput
+          advance={advance}
+          placeholder={
+            step < CART_DEMO.length
+              ? CART_DEMO[step].user ?? `Try: "${CART_HINTS[hintIdx]}"`
+              : "✅ Demo complete"
+          }
+          disabled={step >= CART_DEMO.length}
+        />
+      </div>
+
+      <MobileCartDraftsSheet
+        open={showCartDrafts}
+        onClose={() => setShowCartDrafts(false)}
+        carts={carts}
+        restaurants={RESTAURANTS}
+        activeKey={activeKey}
+        onSelect={(key) => {
+          setActiveKey(key);
+          setShowCartDrafts(false);
+        }}
+        onCompare={() => {
+          setShowCartDrafts(false);
+          setShowCompare(true);
+        }}
+        onAddBarrio={() => {
+          setCarts((prev) =>
+            prev["barrio-queen"]
+              ? prev
+              : { ...prev, "barrio-queen": BARRIO_SEED },
+          );
+          setShowCartDrafts(false);
+        }}
+      />
 
       <CompareCartsView
         open={showCompare}
@@ -481,6 +627,247 @@ function ProactiveSuggestion({
         >
           <X className="h-3.5 w-3.5" strokeWidth={2} />
         </button>
+      </div>
+    </div>
+  );
+}
+
+function MobileStatCell({
+  icon,
+  label,
+  value,
+  color,
+  sub,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  color: string;
+  sub?: string;
+}) {
+  return (
+    <div className="flex flex-col items-start px-3 py-2 border-r border-surface-border last:border-r-0">
+      <div className="flex items-center gap-1 mb-0.5">
+        <span className="text-[11px]">{icon}</span>
+        <span className="text-[9px] font-bold tracking-widest uppercase text-ink-tertiary font-display">
+          {label}
+        </span>
+      </div>
+      <div className="flex items-baseline gap-0.5">
+        <span className={cn("text-sm font-bold font-mono leading-none", color)}>
+          {value}
+        </span>
+        {sub && (
+          <span className="text-[9px] text-ink-tertiary font-mono">{sub}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MobilePlaceOrderBar({
+  totals,
+  restaurantName,
+  onPlace,
+}: {
+  totals: CartTotals;
+  restaurantName: string;
+  onPlace: () => void;
+}) {
+  return (
+    <div className="px-4 py-3 bg-surface-raised border-t border-surface-border">
+      <button
+        type="button"
+        onClick={onPlace}
+        className="w-full py-3.5 rounded-xl bg-gradient-to-br from-brand to-brand-dark text-ink-inverse font-bold text-sm flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(232,106,26,0.22)]"
+      >
+        <span>🍴</span>
+        <span>Place order at {restaurantName}</span>
+        <span className="opacity-60">·</span>
+        <span className="font-mono">${totals.subtotal.toFixed(0)}</span>
+      </button>
+      <div className="text-[9px] text-ink-tertiary text-center mt-1.5">
+        Charged on confirmation · earn {totals.totalBites.toLocaleString()} Bites
+      </div>
+    </div>
+  );
+}
+
+function MobileChatInput({
+  advance,
+  placeholder,
+  disabled,
+}: {
+  advance: () => void;
+  placeholder: string;
+  disabled: boolean;
+}) {
+  const [value, setValue] = useState("");
+  const submit = () => {
+    if (disabled) return;
+    advance();
+    setValue("");
+  };
+  return (
+    <div className="px-3 py-2 bg-surface border-t border-surface-border flex items-center gap-2">
+      <div className="flex-1 flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-raised border border-surface-border min-h-[36px]">
+        <input
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+          }}
+          placeholder={placeholder}
+          disabled={disabled}
+          className="flex-1 bg-transparent text-[13px] text-ink placeholder:text-ink-tertiary outline-none min-w-0"
+        />
+        <button
+          type="button"
+          onClick={submit}
+          disabled={disabled}
+          className={cn(
+            "h-7 w-7 rounded-full flex items-center justify-center shrink-0 transition-colors",
+            disabled
+              ? "bg-surface-border cursor-not-allowed"
+              : "bg-brand cursor-pointer",
+          )}
+          aria-label="Send"
+        >
+          <Send className="h-3 w-3 text-ink-inverse" strokeWidth={2.5} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function MobileCartDraftsSheet({
+  open,
+  onClose,
+  carts,
+  restaurants,
+  activeKey,
+  onSelect,
+  onCompare,
+  onAddBarrio,
+}: {
+  open: boolean;
+  onClose: () => void;
+  carts: Record<string, CartLine[]>;
+  restaurants: Restaurant[];
+  activeKey: string;
+  onSelect: (key: string) => void;
+  onCompare: () => void;
+  onAddBarrio: () => void;
+}) {
+  if (!open) return null;
+  const entries = Object.entries(carts);
+  const hasMultiple =
+    entries.filter(([, l]) => l.length > 0).length >= 2;
+  return (
+    <div className="fixed inset-0 z-50 lg:hidden">
+      <div
+        className="absolute inset-0 bg-black/40"
+        onClick={onClose}
+      />
+      <div className="absolute bottom-0 left-0 right-0 bg-surface rounded-t-2xl shadow-2xl animate-slideUp max-h-[60vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-surface-border">
+          <span className="text-sm font-bold text-ink font-display">
+            🛒 Cart drafts ({entries.length})
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-6 w-6 rounded grid place-items-center text-ink-tertiary hover:text-ink"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" strokeWidth={2} />
+          </button>
+        </div>
+        <div className="p-4 flex flex-col gap-2">
+          {entries.map(([key, lines]) => {
+            const r = restaurants.find((x) => x.id === key);
+            if (!r) return null;
+            const isTier3 = r.tier === 3;
+            const active = key === activeKey;
+            const t = calcCartTotals(lines, r);
+            const minMax =
+              isTier3 && r.estimatedCart
+                ? {
+                    min:
+                      r.estimatedCart.reduce((s, l) => s + l.ppMin, 0) * 14,
+                    max:
+                      r.estimatedCart.reduce((s, l) => s + l.ppMax, 0) * 14,
+                  }
+                : null;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => onSelect(key)}
+                className={cn(
+                  "w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all",
+                  isTier3
+                    ? active
+                      ? "bg-warning-light border-dashed border-warning"
+                      : "bg-surface-raised border-dashed border-warning/40"
+                    : active
+                      ? "bg-brand-light border-brand"
+                      : "bg-surface-raised border-surface-border",
+                )}
+              >
+                <div
+                  className="h-10 w-10 rounded-xl shrink-0 flex items-center justify-center text-xl"
+                  style={{
+                    background: `linear-gradient(135deg, ${r.brandColor ?? "#E86A1A"}, ${r.brandColorAccent ?? r.brandColor ?? "#C4540F"})`,
+                  }}
+                >
+                  {r.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                    <span className="text-[13px] font-semibold text-ink">
+                      {r.name}
+                    </span>
+                    {isTier3 && (
+                      <span className="text-[9px] px-1 py-px rounded bg-warning text-ink-inverse font-bold">
+                        📍 T3
+                      </span>
+                    )}
+                    {active && !isTier3 && (
+                      <span className="text-[9px] px-1 py-px rounded bg-brand text-ink-inverse font-bold">
+                        EDITING
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-ink-tertiary">
+                    {isTier3 && minMax
+                      ? `Est. $${minMax.min.toFixed(0)}–$${minMax.max.toFixed(0)} · quote-only`
+                      : `${lines.reduce((s, l) => s + l.qty, 0)} items · $${t.subtotal.toFixed(2)} · ${t.totalBites.toLocaleString()} Bites`}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+          {hasMultiple && (
+            <button
+              type="button"
+              onClick={onCompare}
+              className="w-full py-3 rounded-xl bg-gradient-to-br from-brand to-brand-dark text-ink-inverse text-sm font-bold flex items-center justify-center gap-2"
+            >
+              ↔ Compare {entries.length} carts
+            </button>
+          )}
+          {!entries.some(([k]) => k === "barrio-queen") && (
+            <button
+              type="button"
+              onClick={onAddBarrio}
+              className="w-full py-3 rounded-xl border border-dashed border-surface-border text-ink-tertiary text-sm flex items-center justify-center gap-1.5 hover:border-brand hover:text-brand transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" strokeWidth={2.4} />
+              Build cart at another restaurant
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
