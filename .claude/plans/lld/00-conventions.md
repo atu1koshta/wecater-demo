@@ -29,9 +29,10 @@ All subsequent LLD files assume these conventions. Do not deviate without updati
 | Layer | Choice |
 |---|---|
 | Frontend | Next.js 14 App Router + TypeScript + Tailwind + shadcn/ui + Vercel |
+| Runtime | Node.js 26.1.0 — pinned via `.nvmrc` + `package.json` `engines: ">=26.1.0"`. CI fails on mismatch. |
 | API | Node.js/Express (standalone WeCater API service) |
-| ORM | Prisma 5 (multi-file schema, one schema file per module group) |
-| DB | PostgreSQL — Supabase or Neon (D2 pending). Same conventions regardless. |
+| ORM | Prisma 6 (single `prisma/schema.prisma` for MP core today; promote to multi-file via `prismaSchemaFolder` preview when schema crosses ~5 modules). |
+| DB | MySQL for MP core (`wecater_core` schema). Postgres remains the target for non-MP services. |
 | Background jobs | Inngest |
 | Search | Typesense |
 | Cache | Redis (Upstash or self-hosted) |
@@ -472,7 +473,37 @@ Rules:
 - Service methods are the only cross-module import surface.
 - Service methods validate `actor` permissions via `authzService.can()` before any DB op.
 - Service methods return domain types (not Prisma raw models).
-- Service methods throw typed domain errors, never raw Prisma errors.
+- **Services do not call Prisma models directly.** Every DB read/write goes through a `*.repository.ts` sibling (see §4.1). A service may grab the `PrismaClient` handle only to pass it (or the `AppContext` carrying it) into a repository call.
+- Prisma errors bubble unchanged out of repositories and services. The central error middleware (§6.2) is the single layer that masks driver internals.
+
+### 4.1 Repository pattern
+
+Every table gets a sibling `{table}.repository.ts` colocated with the module that owns it. The repository is the sole owner of Prisma calls against its table.
+
+```typescript
+// modules/auth/auth-account-settings.repository.ts
+import type { AppContext } from '../composition.js';
+import type { PrismaLifecycle } from '../infra/db/prisma.client.js';
+
+export const authAccountSettingsRepo = {
+  async upsertOnSignIn(ctx: AppContext, input: { crAccountId: bigint; vpId?: string | null }): Promise<void> {
+    const prisma = ctx.services.get<PrismaLifecycle>('prisma').native();
+    const now = new Date();
+    await prisma.authAccountSetting.upsert({
+      where: { crAccountId: input.crAccountId },
+      update: { lastLoginAt: now },
+      create: { crAccountId: input.crAccountId, vpId: input.vpId ?? null, lastLoginAt: now }
+    });
+  }
+};
+```
+
+Repository rules:
+- Method names reflect call-site intent, not the SQL verb (`upsertOnSignIn`, not `upsert`).
+- No `try`/`catch` for Prisma errors. Let them bubble — `errorHandler` masks at the HTTP boundary.
+- Repository methods return domain-shaped data, not raw Prisma row types, when the caller crosses a module boundary. Within the same module a repo may return the Prisma row.
+- A repo never calls another repo. Cross-table coordination lives in the service layer.
+- Tests for services mock the repository module; tests for repositories hit a real DB (per §14).
 
 ---
 
@@ -688,7 +719,7 @@ HTTP status mapping:
 
 ### 6.2 Error mapping middleware
 
-Central Express error handler maps `DomainError` subtypes → HTTP status codes. Raw Prisma errors never reach the client — caught and re-thrown as `DomainError`.
+Central Express error handler maps `DomainError` subtypes → HTTP status codes. **Raw Prisma errors never reach the client.** Repositories and services do NOT catch them — they bubble up to the middleware, which masks `PrismaClientKnownRequestError`, `PrismaClientValidationError`, etc. to a generic 500/503 response without leaking driver internals. Repositories only translate when the *meaning* of a Prisma error differs from its default mapping (e.g. unique-violation → `ConflictError`); otherwise let it bubble.
 
 ---
 
@@ -696,8 +727,8 @@ Central Express error handler maps `DomainError` subtypes → HTTP status codes.
 
 - Strict mode on. No `any`. No `as unknown as T`.
 - Domain types defined in `packages/types/` — shared client/server.
-- Prisma generated types used internally only — not exported from service layer.
-- `zod` for all request body validation at route boundary. Schema defined alongside route.
+- Prisma generated types used inside repositories only — never imported by services, controllers, or routes. Service-layer signatures use domain types; repos translate at the boundary when crossing modules.
+- `zod` for all request body validation at route boundary. Schema defined alongside route (or alongside service — wherever the input type lives), imported by route for `.parse()`.
 - `Result<T, E>` pattern discouraged — use typed throws for simplicity in MVP.
 
 ---
@@ -778,21 +809,36 @@ All secrets via environment variables. Never hardcoded. Never committed.
 
 ```
 src/modules/{module-name}/
-  {module}.service.ts       ← service interface + implementation
-  {module}.routes.ts        ← Express routes, zod validation
-  {module}.types.ts         ← domain types (re-exported to packages/types)
-  {module}.errors.ts        ← module-specific DomainError subclasses
-  {module}.events.ts        ← outbox emit helpers + event payload types
+  {module}.service.ts                 ← service interface + implementation
+  {module}.controller.ts              ← HTTP-aware: reads req, writes res, sets cookies
+  {module}.routes.ts                  ← Express routes, zod validation
+  {module}.types.ts                   ← domain types (re-exported to packages/types)
+  {module}.errors.ts                  ← module-specific DomainError subclasses
+  {module}.events.ts                  ← outbox emit helpers + event payload types
+  {table}.repository.ts               ← one file per table owned by the module
   __tests__/
     {module}.service.test.ts
     {module}.routes.test.ts
-
-prisma/schema/
-  schema.prisma             ← top-level: datasource + generator + previewFeatures = ["prismaSchemaFolder"]
-  {module}.prisma           ← models for that module — one file per module group
+    {table}.repository.test.ts
 ```
 
-Requires Prisma ≥ 5.15 with `prismaSchemaFolder` preview feature.
+Prisma schema layout:
+
+```
+prisma/
+  schema.prisma                       ← MVP: single file, datasource + generator + every model
+  migrations/                         ← prisma migrate dev output, committed
+```
+
+Promote to the multi-file layout below once the single file crosses ~5 modules:
+
+```
+prisma/schema/
+  schema.prisma                       ← datasource + generator + previewFeatures = ["prismaSchemaFolder"]
+  {module}.prisma                     ← models for that module — one file per module group
+```
+
+Requires Prisma ≥ 5.15 with `prismaSchemaFolder` preview feature when split.
 
 ---
 
